@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 議題討論中台</title>
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#1c2733;--mute:#66758a;--line:#dde3ea;--navy:#17446b;--sel:#e4edf7;--me:#dcebfa;--warn:#fdeccb;--warnink:#8a5a00;--ok:#d9f2e0;--okink:#17703a;--chip:#e3f1fb}
+@media(prefers-color-scheme:dark){:root{--bg:#10151b;--panel:#18202a;--ink:#e6ecf2;--mute:#93a2b5;--line:#2b3644;--navy:#5aa3e0;--sel:#22344a;--me:#1f3a58;--warn:#4a3a14;--warnink:#f2c46a;--ok:#1a3d2a;--okink:#7fd6a0;--chip:#1f3447}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+header{padding:10px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:18px;margin:0;flex:1;min-width:150px}
+.btn{border:1.5px solid var(--navy);background:transparent;color:var(--navy);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{background:var(--sel)}.btn.pri{background:var(--navy);color:var(--panel)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.sm{padding:3px 8px;font-size:13px}
+.only-m{display:none}
+main{flex:1;min-height:0;display:grid;grid-template-columns:230px minmax(0,1fr) 290px;gap:12px;padding:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-height:0;overflow:auto}
+.card h2{font-size:15px;margin:0 0 10px}
+.tl button.t{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:8px;cursor:pointer}
+.tl button.t.on{background:var(--sel);font-weight:700}
+.center{display:flex;flex-direction:column;overflow:hidden;padding:0}
+.chead{padding:14px 16px 8px;border-bottom:1px solid var(--line)}
+.chead h2{display:inline;font-size:18px}
+.badge{font-size:12px;border-radius:99px;padding:1px 9px;background:var(--ok);color:var(--okink);margin-left:6px}
+.chead p{margin:4px 0 0;color:var(--mute);font-size:13px}
+#chat{flex:1;min-height:0;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg.me{flex-direction:row-reverse}
+.av{flex:none;width:36px;height:36px;border-radius:50%;color:#fff;display:grid;place-items:center;font-weight:700}
+.bub{border:1px solid var(--line);border-radius:12px;padding:10px 14px;min-width:0;max-width:min(760px,100%);overflow-wrap:anywhere}
+.me .bub{background:var(--me)}
+.meta{font-size:12px;color:var(--mute);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px}
+.meta b{color:var(--ink);font-size:13px}
+.tag{border-radius:5px;padding:0 6px}.tag.r{background:var(--chip)}.tag.w{background:var(--warn);color:var(--warnink)}
+.txt p{margin:.3em 0}.txt ul,.txt ol{margin:.3em 0;padding-left:1.4em}
+.composer{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line)}
+.composer textarea{flex:1;resize:none;height:44px;border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--bg)}
+.mem{display:flex;gap:8px;align-items:center;margin:6px 0}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+dl{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;margin:0;font-size:14px}dt{color:var(--mute)}dd{margin:0;text-align:right;font-weight:700}
+.bar{height:8px;border-radius:9px;background:var(--line);overflow:hidden;margin:6px 0 12px}.bar i{display:block;height:100%;background:#2aa14f}
+.stack{display:grid;gap:8px;margin-top:10px}
+.note{color:var(--mute);font-size:12.5px}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+dialog{width:min(720px,94vw);max-height:90vh;border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);padding:16px}
+dialog::backdrop{background:#0008}
+label{display:block;font-size:13px;color:var(--mute);margin-top:8px}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--bg)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1;min-width:130px}
+.item{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+.item.act{border-color:var(--navy)}
+.tabs{display:flex;gap:6px;margin-bottom:8px}.tabs .btn.pri{pointer-events:none}
+.acts{margin-top:4px;display:flex;gap:6px}.acts button{border:0;background:transparent;color:var(--mute);font-size:12px;cursor:pointer;padding:0 4px}.acts button:hover{color:var(--navy)}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--navy);color:var(--panel);padding:8px 14px;border-radius:9px;z-index:99}
+:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+@media(max-width:1020px){
+ main{grid-template-columns:minmax(0,1fr);padding:8px}
+ .side{display:none}.side.open{display:block;position:fixed;inset:60px 8px 8px;z-index:20;box-shadow:0 8px 40px #0007}
+ .only-m{display:inline-block}
+ .chead h2{font-size:16px}
+}
+@media(prefers-reduced-motion:no-preference){.msg{animation:in .2s}@keyframes in{from{opacity:.4}to{opacity:1}}}
+</style>
+</head>
+<body>
+<header>
+ <button class="btn only-m" id="bList">議題</button>
+ <h1>AI 議題討論中台</h1>
+ <span class="note" id="provLbl"></span>
+ <button class="btn only-m" id="bPanel">工作面板</button>
+ <button class="btn" id="bImp">匯入 .md</button>
+ <button class="btn" id="bExp">匯出 .md</button>
+ <button class="btn pri" id="bSet">LLM 與成員設定</button>
+ <input type="file" id="file" accept=".md,text/markdown" hidden>
+</header>
+<main>
+ <aside class="card side tl" id="sList"><h2>議題列表</h2><input id="q" placeholder="搜尋議題或內容" style="margin-bottom:8px"><div id="tList"></div><button class="btn sm" id="bArch" style="margin-top:8px">已封存議題 →</button><div class="stack"><button class="btn" id="bNew">＋ 建立議題</button></div></aside>
+ <section class="card center">
+  <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p><div class="acts"><button id="bEdit">編輯議題</button><button id="bFacts">已確認資料</button><button id="bArc">封存</button><button id="bDel">刪除</button></div></div>
+  <div id="chat" aria-live="polite"></div>
+  <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出；可用 @顧問名稱 指定單一顧問回應）"></textarea><button class="btn pri" id="bSend">送出</button></div>
+ </section>
+ <aside class="card side" id="sPanel">
+  <h2>議題工作面板</h2>
+  <div id="mems"></div><hr>
+  <dl id="info"></dl><div class="bar"><i id="barI"></i></div>
+  <hr><h2>本議題操作</h2>
+  <div class="stack"><button class="btn" id="bRound"></button><button class="btn" id="bSum">請主管彙整結論</button><button class="btn" id="bVer">查證最新一輪地名</button><button class="btn" id="bStop" disabled>停止生成</button><button class="btn" id="bStance">標記為正式立場</button></div>
+  <p class="note">系統不會自動開會：每一輪由你按下才進行；彙整是主管 Bot 的初步建議，不等於正式立場。</p>
+ </aside>
+</main>
+
+<dialog id="dlg">
+ <div class="tabs"><button class="btn pri" id="tab1">LLM 提供者</button><button class="btn" id="tab2">成員 Bot</button><button class="btn" id="tab3">一般與資料</button><span style="flex:1"></span><button class="btn" id="bClose">完成</button></div>
+ <div id="dBody"></div>
+</dialog>
+
+<dialog id="dlgF"><h2 style="margin-top:0">本議題已確認資料</h2><p class="note">貼上你已確認為真實的資訊（地點、營業時間、預算、官方網址等）。Bot 會優先依此討論，資料以外的內容會標示「待查證」。</p><textarea id="fTxt" rows="10"></textarea><div class="row" style="margin-top:12px"><button class="btn pri" id="fOk">儲存</button></div></dialog>
+<dialog id="dlgM"><h2 style="margin-top:0">選擇本議題參與成員</h2><div id="mBody"></div><p class="note">發言順序依「成員 Bot」設定中的排列順序。</p><div class="row" style="margin-top:12px"><button class="btn pri" id="mOk">完成</button></div></dialog>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const LIMIT=50000;
+const KEY='aiDiscussHub.v1';
+const COLORS=['#9aa21e','#2f9e44','#17a68a','#2f6fd0','#b0563a','#7b4fb8'];
+const SUP_TAG='AI 初步建議，非正式立場';
+
+function defaults(){
+ const bots=[
+  {id:'sup',name:'總經理室 / 經營管理主管 Bot',short:'總',role:'主管',prompt:'你是總經理室的經營管理主管。負責開場釐清議題、指派專業顧問，並在最後彙整各方意見成為結論與行動清單。'},
+  {id:'str',name:'策略規劃顧問',short:'策',role:'專業',prompt:'你是策略規劃顧問。從資源配置、優先順序與執行路徑分析議題，先列已知事實，再提出可行方案。'},
+  {id:'kpi',name:'目標與績效管理顧問',short:'目',role:'專業',prompt:'你是目標與績效管理顧問。以數據、缺口計算與每日目標拆解評估可行性，並提出追蹤指標。'},
+  {id:'risk',name:'風險與決策顧問',short:'風',role:'專業',prompt:'你是風險與決策顧問。指出各方案的風險、前提假設與替代方案，並建議決策門檻。'}];
+ const providers=[
+  {id:'puter',name:'Puter AI（免金鑰）',type:'puter',base:'',model:'gpt-4o-mini',key:''},
+  {id:'ollama',name:'Ollama',type:'ollama',base:'http://localhost:11434',model:'llama3.2',key:''},
+  {id:'local',name:'地端 LLM（OpenAI 相容：LM Studio / vLLM / llama.cpp）',type:'openai',base:'http://localhost:1234/v1',model:'local-model',key:''}];
+ const t={id:uid(),title:'本月業績最後衝刺',desc:'只剩最後5天（不含今天），業績平均達成只有90%，討論一下如何達成100%',status:'進行中',round:0,members:['sup','str','kpi','risk'],msgs:[],used:0};
+ return{bots,providers,active:'puter',topics:[t],cur:t.id,me:'使用者'};
+}
+let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
+if(!S||!S.topics)S=defaults();
+if(!S.cfg)S.cfg={temp:0.7,maxTok:600,recent:0};if(S.company==null)S.company='';{const dg={sup:'總經理室',str:'策略與績效',kpi:'策略與績效',risk:'風險與決策'};S.bots.forEach(b=>{if(b.grp==null)b.grp=dg[b.id]||''})}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const topic=()=>S.topics.find(t=>t.id===S.cur)||S.topics[0];
+const bot=id=>S.bots.find(b=>b.id===id);
+const prov=()=>S.providers.find(p=>p.id===S.active)||S.providers[0];
+const fmt=ts=>{const d=new Date(ts),p=n=>String(n).padStart(2,'0');return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`};
+const toast=m=>{const e=document.createElement('div');e.className='toast';e.textContent=m;document.body.append(e);setTimeout(()=>e.remove(),2600)};
+
+function md(t){
+ let h=esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split('\n'),o='',list=null;
+ const close=()=>{if(list){o+=`</${list}>`;list=null}};
+ for(const l of h){
+  let m;
+  if(m=l.match(/^\s*(?:[-*・•]|\d+[.、])\s+(.*)/)){const k=/^\s*\d/.test(l)?'ol':'ul';if(list!==k){close();o+=`<${k}>`;list=k}o+=`<li>${m[1]}</li>`}
+  else{close();if(l.trim())o+=`<p>${l}</p>`}
+ }close();return o;
+}
+
+/* ---------- render ---------- */
+function render(){
+ const t=topic();
+ $('provLbl').textContent='LLM：'+prov().name.split('（')[0]+' / '+prov().model;
+ $('tList').innerHTML=listed().map(x=>`<button class="t ${x.id===t.id?'on':''}" data-id="${x.id}">${esc(x.title)}</button>`).join('');
+ $('tTitle').textContent=t.title;$('tBadge').textContent=t.status+(t.archived?'・已封存':'');$('bArc').textContent=t.archived?'還原':'封存';$('tDesc').textContent=t.desc;
+ $('mems').innerHTML='<h2 style="margin-top:0">參與成員 <button class="btn sm" id="bMem" style="float:right" '+(busy?'disabled':'')+'>選擇</button></h2>'+`<div class="mem"><span class="dot" style="background:#2f6fd0"></span>${esc(S.me)}</div>`+
+  t.members.map(id=>bot(id)).filter(Boolean).map(b=>`<div class="mem"><span class="dot" style="background:${col(b)}"></span><span>${esc(b.name)}</span><span class="note">（${b.role}${grpOf(b).length?'・'+esc(grpOf(b).join('、')):''}）</span></div>`).join('');
+ $('info').innerHTML=`<dt>議題編號</dt><dd>T-${t.id.slice(0,4)}</dd><dt>討論狀態</dt><dd>${t.status}</dd><dt>已討論輪數</dt><dd>${t.round}（不限輪數）</dd><dt>立場狀態</dt><dd>${t.stance||'尚未建立'}</dd><dt>AI 用量（粗估）</dt><dd>${t.used.toLocaleString()} / ${LIMIT.toLocaleString()}</dd>`;
+ $('barI').style.width=Math.min(100,t.used/LIMIT*100)+'%';
+ $('bRound').textContent=t.round===0?'開始討論（第 1 輪）':'再討論一輪（不限輪數）';
+ $('bRound').disabled=busy;$('bSum').disabled=busy||!t.msgs.length;$('bVer').disabled=busy||!t.msgs.length;$('bSend').disabled=busy;$('bStop').disabled=!busy;
+ renderChat();
+}
+const col=b=>COLORS[S.bots.indexOf(b)%COLORS.length];
+function renderChat(){
+ const t=topic(),c=$('chat'),stick=c.scrollHeight-c.scrollTop-c.clientHeight<80;
+ c.innerHTML=t.msgs.length?t.msgs.map((m,i)=>{
+  if(m.kind==='human')return `<div class="msg me"><div class="av" style="background:#2f6fd0">${esc(m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>真人 ${fmt(m.ts)}</div><div class="txt">${md(m.text)}</div>${acts(m,i)}</div></div>`;
+  const b=bot(m.botId)||{short:m.name[0],id:''};
+  return `<div class="msg"><div class="av" style="background:${bot(m.botId)?col(bot(m.botId)):'#777'}">${esc(b.short||m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>${esc(m.role||'')} Bot<span class="tag r">${m.round?'第 '+m.round+' 輪':'彙整'}</span><span class="tag w">${esc(m.tag||SUP_TAG)}</span>${fmt(m.ts)}</div><div class="txt">${m.text?md(m.text):'<span class="note">思考中…</span>'}</div>${acts(m,i)}</div></div>`}).join('')
+  :'<p class="note">尚無對話。先輸入議題內容，再按右側「開始討論」。</p>';
+ if(stick)c.scrollTop=c.scrollHeight;
+}
+
+/* ---------- LLM ---------- */
+let busy=false,abort=null,puterP=null;
+function loadPuter(){
+ if(window.puter)return Promise.resolve();
+ if(puterP)return puterP;
+ puterP=new Promise((res,rej)=>{
+  const s=document.createElement('script');s.src='https://js.puter.com/v2/';
+  s.onload=()=>res();
+  s.onerror=()=>{puterP=null;s.remove();rej(new Error(
+   '無法載入 puter.js（js.puter.com）。常見原因：1) 檔案是在 Claude 預覽視窗內開啟，該環境會擋外部腳本，請下載後用 Chrome/Edge/Safari 直接開啟；2) 廣告或隱私擴充功能、公司網路擋掉 puter.com；3) 目前沒有網路。可先在「LLM 與成員設定」改用 Ollama 或地端 LLM。'))};
+  document.head.append(s);
+ });
+ return puterP;
+}
+async function* stream(p,msgs,signal,o={}){
+ if(p.type==='puter'){
+  await loadPuter();
+  const r=await puter.ai.chat(msgs,{model:p.model||undefined,stream:true,temperature:o.temp,max_tokens:o.max});
+  for await(const part of r){if(signal.aborted)return;if(part?.text)yield part.text}
+ }else if(p.type==='ollama'){
+  const res=await fetch(p.base.replace(/\/$/,'')+'/api/chat',{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:p.model,messages:msgs,stream:true,options:{temperature:o.temp,num_predict:o.max}})});
+  if(!res.ok)throw new Error('Ollama 回應 '+res.status+'：'+await res.text());
+  yield* lines(res,l=>{const j=JSON.parse(l);return j.message?.content||''});
+ }else{
+  const h={'Content-Type':'application/json'};if(p.key)h.Authorization='Bearer '+p.key;
+  const res=await fetch(p.base.replace(/\/$/,'')+'/chat/completions',{method:'POST',signal,headers:h,body:JSON.stringify({model:p.model,messages:msgs,stream:true,temperature:o.temp,max_tokens:o.max})});
+  if(!res.ok)throw new Error('LLM 回應 '+res.status+'：'+await res.text());
+  yield* lines(res,l=>{l=l.replace(/^data:\s*/,'');if(!l||l==='[DONE]')return'';return JSON.parse(l).choices?.[0]?.delta?.content||''});
+ }
+}
+async function* lines(res,fn){
+ const rd=res.body.getReader(),dec=new TextDecoder();let buf='';
+ for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});
+  const ls=buf.split('\n');buf=ls.pop();
+  for(const l of ls){if(!l.trim())continue;try{const s=fn(l);if(s)yield s}catch(e){}}}
+}
+const transcript=t=>t.msgs.filter(m=>m.text).map(m=>`【${m.name}${m.kind==='human'?'（真人）':''}${m.round?' 第'+m.round+'輪':''}】\n${m.text}`).join('\n\n');
+
+function hint(msg){
+ if(/failed to load|resource limitation|out of memory|OOM/i.test(msg))return '\n\n💡 這是模型伺服器端載入失敗（多半是記憶體或顯存不足），不是本工具的問題。請改用較小的模型（如 gemma3:12b、gemma3:4b），並確認沒有其他模型佔用顯存。';
+ if(/Failed to fetch|NetworkError/i.test(msg))return '\n\n💡 無法連線：請確認服務已啟動、Base URL 正確，且已允許 CORS。';
+ return '';
+}
+async function speak(b,instruction,round,tag,redo){
+ const t=topic();let m,upto;
+ if(redo){m=redo;upto=t.msgs.indexOf(m);m.text=''}
+ else{m={kind:'bot',botId:b.id,name:b.name,role:b.role,round,tag,text:'',ts:Date.now(),instr:instruction};t.msgs.push(m);upto=t.msgs.length-1}
+ render();
+ let ms=t.msgs.slice(0,upto).filter(x=>x.text);if(S.cfg.recent>0&&ms.length>S.cfg.recent)ms=ms.slice(-S.cfg.recent);
+ const tr=ms.map(x=>`【${x.name}${x.kind==='human'?'（真人）':''}${x.round?' 第'+x.round+'輪':''}】\n${x.text}`).join('\n\n');
+ const sys=`${b.prompt}\n${S.company?'企業背景：'+S.company+'\n':''}議題：${t.title}\n說明：${t.desc}\n規則：一律使用繁體中文；先簡短回應前面發言，再提出具體、可執行的內容；不編造數據，缺資料時列出需要確認的資訊；全文約 250 字內。${S.cfg.strict!==false?'\n事實準則（必須遵守）：1.只提及你高度確定真實存在的具名地點、店家、活動與數據，不得編造或憑印象湊字；2.不確定時寫「【待查證】」並說明查證方式，寧可少列；3.每個具名地點後附（查證關鍵字：城市＋名稱）；4.若討論記錄中「事實查核」標示某地點查無對應，必須捨棄、不再推薦；5.已確認資料以外的內容須標明為一般知識且待查證。':''}${t.facts?'\n已確認資料（優先依據）：\n'+t.facts:''}`;
+ const msgs=[{role:'system',content:sys},{role:'user',content:`目前討論記錄：\n${tr}\n\n${instruction}`}];
+ abort=new AbortController();
+ try{for await(const ch of stream(S.providers.find(x=>x.id===b.prov)||prov(),msgs,abort.signal,{temp:S.cfg.strict!==false?Math.min(S.cfg.temp,0.3):S.cfg.temp,max:S.cfg.maxTok})){m.text+=ch;renderChat()}}
+ catch(e){if(e.name!=='AbortError')m.text+=`\n\n⚠ 發生錯誤：${e.message||e}`+hint(String(e.message||e));else m.text+='\n\n（已停止）'}
+ t.used+=Math.round((sys.length+msgs[1].content.length+m.text.length)/1.5);
+ save();render();
+}
+async function run(fn){
+ if(busy)return;busy=true;render();
+ try{await fn()}finally{busy=false;abort=null;save();render()}
+}
+$('bRound').onclick=()=>run(async()=>{
+ const t=topic();t.round++;t.status='進行中';
+ const sup=bot(t.members.find(id=>bot(id)?.role==='主管'));
+ const specs=t.members.map(bot).filter(b=>b&&b.role!=='主管');
+ if(t.round===1&&sup)await speak(sup,'請以主管身分簡短開場：重述議題、指出需要哪些顧問發言。',1,SUP_TAG);
+ for(const b of specs){if(abort?.signal.aborted)break;await speak(b,t.round===1?'請依你的專業對此議題提出初步分析與建議。':`這是第 ${t.round} 輪。請回應其他顧問的觀點，補充或修正你先前的建議，並指出共識與分歧；若已有共識，請說明還缺什麼才能定案。`,t.round,SUP_TAG)}
+});
+$('bSum').onclick=()=>run(async()=>{
+ const t=topic(),sup=bot(t.members.find(id=>bot(id)?.role==='主管'))||t.members.map(bot)[0];
+ await speak(sup,'請彙整以上討論：1.共識 2.分歧 3.建議行動方案（含負責人與期限）4.待確認事項。條列呈現。',0,'彙整結論（初步建議，非正式立場）');
+ t.status='已彙整';t.stance='主管初步建議（尚未確認）';
+});
+$('bStop').onclick=()=>abort?.abort();
+$('bSend').onclick=send;
+$('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send()}});
+function send(){const v=$('inp').value.trim();if(!v||busy)return;const t=topic();t.msgs.push({kind:'human',name:S.me,text:v,ts:Date.now()});$('inp').value='';save();render();
+ const ms=t.members.map(bot).filter(b=>b&&(v.includes('@'+b.name.split(' ')[0])||grpOf(b).some(g=>v.includes('@'+g))));
+ if(ms.length)run(async()=>{for(const b of ms)await speak(b,'請直接、具體地回應真人最新的提問或指示。',t.round||1,SUP_TAG)})}
+
+/* ---------- topics ---------- */
+$('tList').onclick=e=>{const b=e.target.closest('button.t');if(b){S.cur=b.dataset.id;save();render();$('sList').classList.remove('open')}};
+$('bNew').onclick=()=>{
+ const title=prompt('議題名稱');if(!title)return;const desc=prompt('議題說明（可留空）')||'';
+ const t={id:uid(),title,desc,status:'進行中',round:0,members:S.bots.map(b=>b.id),msgs:[],used:0};
+ S.topics.push(t);S.cur=t.id;save();render();$('sList').classList.remove('open');openMem();
+};
+$('bList').onclick=()=>{$('sPanel').classList.remove('open');$('sList').classList.toggle('open')};
+$('bPanel').onclick=()=>{$('sList').classList.remove('open');$('sPanel').classList.toggle('open')};
+
+/* ---------- markdown export / import ---------- */
+function toMd(t){
+ const meta=JSON.stringify({title:t.title,desc:t.desc,facts:t.facts||'',status:t.status,round:t.round,used:t.used,members:t.members.map(id=>{const b=bot(id);return b&&{id:b.id,name:b.name,short:b.short,role:b.role,grp:b.grp||'',prompt:b.prompt}}).filter(Boolean)});
+ return `# ${t.title}\n\n<!--meta:${meta}-->\n\n> ${t.desc.replace(/\n/g,' ')}\n\n`+t.msgs.map(m=>`### @@ ${[m.name,m.kind,m.role||'',m.round??'',m.botId||'',m.tag||'',new Date(m.ts).toISOString()].map(x=>String(x).replace(/\|/g,'／')).join(' | ')}\n\n${m.text}\n`).join('\n');
+}
+$('bExp').onclick=()=>{
+ const t=topic(),a=document.createElement('a');
+ a.href=URL.createObjectURL(new Blob([toMd(t)],{type:'text/markdown;charset=utf-8'}));
+ a.download=t.title.replace(/[\\/:*?"<>|]/g,'_')+'.md';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast('已匯出 Markdown');
+};
+$('bImp').onclick=()=>$('file').click();
+$('file').onchange=async e=>{
+ const f=e.target.files[0];if(!f)return;e.target.value='';
+ try{
+  const all=await f.text();for(const txt of all.split('<!--=====TOPIC=====-->')){if(!txt.trim())continue;
+  const mm=txt.match(/<!--meta:(.*)-->/),meta=mm?JSON.parse(mm[1]):{};
+  const title=meta.title||(txt.match(/^#\s+(.+)/m)||[])[1]||f.name.replace(/\.md$/,'');
+  const t={id:uid(),title,desc:meta.desc||'',facts:meta.facts||'',status:meta.status||'進行中',round:meta.round||0,used:meta.used||0,members:[],msgs:[]};
+  for(const b of meta.members||[]){let x=S.bots.find(k=>k.id===b.id||k.name===b.name);if(!x){x={...b,id:b.id||uid()};S.bots.push(x)}t.members.push(x.id)}
+  for(const blk of txt.split(/^### @@ /m).slice(1)){
+   const i=blk.indexOf('\n'),h=blk.slice(0,i).split(' | ').map(s=>s.trim()),body=blk.slice(i+1).replace(/\n+$/,'').trim();
+   const[name,kind,role,round,botId,tag,ts]=h;
+   const m={kind:kind==='human'?'human':'bot',name,text:body,ts:Date.parse(ts)||Date.now()};
+   if(m.kind==='bot'){m.role=role;m.round=Number(round)||0;m.botId=botId||(S.bots.find(b=>b.name===name)||{}).id;m.tag=tag;if(m.botId&&!t.members.includes(m.botId))t.members.push(m.botId)}
+   t.msgs.push(m);
+  }
+  if(!t.members.length)t.members=S.bots.map(b=>b.id);
+  S.topics.push(t);S.cur=t.id;save();render();toast('已匯入：'+title)}
+ }catch(err){toast('匯入失敗：'+err.message)}
+};
+
+/* ---------- settings ---------- */
+let tab=1;
+const dlg=$('dlg');
+$('bSet').onclick=()=>{drawSet();dlg.showModal()};
+$('bClose').onclick=()=>{save();dlg.close();render()};
+$('tab1').onclick=()=>{tab=1;drawSet()};$('tab2').onclick=()=>{tab=2;drawSet()};
+function drawSet0(){
+ $('tab1').className='btn'+(tab===1?' pri':'');$('tab2').className='btn'+(tab===2?' pri':'');
+ const B=$('dBody');
+ if(tab===1){
+  B.innerHTML=S.providers.map(p=>`<div class="item ${p.id===S.active?'act':''}" data-id="${p.id}">
+   <div class="row"><label style="margin:0"><input type="radio" name="act" style="width:auto" ${p.id===S.active?'checked':''} data-f="act"> 使用此提供者</label><button class="btn sm" data-f="test" style="flex:none;min-width:0">測試連線</button><button class="btn sm" data-f="del" style="flex:none;min-width:0">刪除</button></div>
+   <div class="row"><div><label>名稱</label><input data-f="name" value="${esc(p.name)}"></div>
+   <div><label>類型</label><select data-f="type">${[['puter','Puter AI'],['ollama','Ollama'],['openai','OpenAI 相容 API（地端）']].map(([v,l])=>`<option value="${v}" ${p.type===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
+   <div class="row"><div><label>Base URL</label><input data-f="base" value="${esc(p.base)}" placeholder="Puter 不需填"></div>
+   <div><label>模型</label><input data-f="model" list="dl-${p.id}" value="${esc(p.model)}"><datalist id="dl-${p.id}">${(p.models||[]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div></div>
+   <label>API Key（選填）</label><input data-f="key" type="password" value="${esc(p.key)}"></div>`).join('')+
+  `<button class="btn" id="addP">＋ 新增自訂 LLM</button>
+   <p class="note">Ollama 從本機檔案開啟頁面時，需先設定環境變數 OLLAMA_ORIGINS=* 再重啟；地端 OpenAI 相容服務需開啟 CORS。設定僅存於本機瀏覽器；API Key 為明文儲存，請勿在共用電腦使用。</p>`;
+ }else{
+  B.innerHTML=S.bots.map(b=>`<div class="item" data-id="${b.id}"><div class="row"><div><label>名稱</label><input data-f="name" value="${esc(b.name)}"></div>
+   <div><label>角色</label><select data-f="role">${['主管','專業'].map(r=>`<option ${b.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
+   <div><label>使用的 LLM</label><select data-f="prov"><option value="">跟隨預設</option>${S.providers.map(p=>`<option value="${p.id}" ${b.prov===p.id?'selected':''}>${esc(p.name.split('（')[0])}</option>`).join('')}</select></div><button class="btn sm" data-f="delb" style="flex:none;min-width:0">刪除</button></div>
+   <label>所屬部門／群組（多個以逗號分隔，例如：策略部, 風控）</label><input data-f="grp" list="grpList" value="${esc(b.grp||'')}"><datalist id="grpList">${allGroups().map(g=>`<option value="${esc(g)}">`).join('')}</datalist><label>角色提示詞</label><textarea rows="3" data-f="prompt">${esc(b.prompt)}</textarea></div>`).join('')+`<button class="btn" id="addB">＋ 新增成員 Bot</button>`;
+ }
+}
+$('dBody').addEventListener('input',e=>{
+ const it=e.target.closest('.item'),f=e.target.dataset.f;if(!it||!f)return;
+ const o=(tab===1?S.providers:S.bots).find(x=>x.id===it.dataset.id);if(!o||f==='act')return;
+ o[f]=e.target.value;if(f==='name'&&tab===2)o.short=e.target.value[0]||'？';save();
+});
+$('dBody').addEventListener('click',e=>{
+ const it=e.target.closest('.item'),f=e.target.dataset.f;
+ if(e.target.id==='addP'){const p={id:uid(),name:'自訂 LLM',type:'openai',base:'http://localhost:8000/v1',model:'',key:''};S.providers.push(p);save();drawSet();return}
+ if(e.target.id==='addB'){const b={id:uid(),name:'新顧問',short:'新',role:'專業',prompt:'你是一位專業顧問，請從你的專業角度分析議題。'};S.bots.push(b);S.topics.forEach(t=>t.members.push(b.id));save();drawSet();return}
+ if(!it)return;
+ if(f==='act'){S.active=it.dataset.id;save();drawSet()}
+ if(f==='test')testProv(S.providers.find(x=>x.id===it.dataset.id),e.target);
+ if(f==='del'){if(S.providers.length<2)return toast('至少保留一個提供者');S.providers=S.providers.filter(p=>p.id!==it.dataset.id);if(S.active===it.dataset.id)S.active=S.providers[0].id;save();drawSet()}
+ if(f==='delb'){if(S.bots.length<2)return toast('至少保留一位成員');S.bots=S.bots.filter(b=>b.id!==it.dataset.id);S.topics.forEach(t=>t.members=t.members.filter(m=>m!==it.dataset.id));save();drawSet()}
+});
+$('dBody').addEventListener('change',e=>{if(e.target.dataset.f==='type'||e.target.dataset.f==='role'){const it=e.target.closest('.item');if(e.target.dataset.f==='type'){const p=S.providers.find(x=>x.id===it.dataset.id);if(p.type==='puter'&&!p.model)p.model='gpt-4o-mini'}drawSet()}});
+
+/* ---------- v2 additions ---------- */
+let showArch=false;
+function listed(){const q=($('q').value||'').toLowerCase();return S.topics.filter(x=>!!x.archived===showArch&&(!q||(x.title+x.desc+x.msgs.map(m=>m.text).join(' ')).toLowerCase().includes(q)))}
+const dl=(name,text,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+const acts=(m,i)=>busy?'':`<div class="acts"><button data-a="copy" data-i="${i}">複製</button>${m.kind==='bot'&&m.botId?`<button data-a="re" data-i="${i}">重新生成</button><button data-a="ver" data-i="${i}">查證地名</button>`:''}<button data-a="del" data-i="${i}">刪除</button></div>`;
+$('chat').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const t=topic(),i=+b.dataset.i,m=t.msgs[i];if(!m)return;
+ if(b.dataset.a==='copy'){navigator.clipboard?.writeText(m.text);toast('已複製')}
+ if(b.dataset.a==='del'){t.msgs.splice(i,1);save();render()}
+ if(b.dataset.a==='ver')run(()=>verify([m.text]));
+ if(b.dataset.a==='re'&&bot(m.botId))run(()=>speak(bot(m.botId),m.instr||'請依你的專業對此議題提出建議。',m.round,m.tag,m))};
+$('q').oninput=render;
+$('bArch').onclick=()=>{showArch=!showArch;$('bArch').textContent=showArch?'← 回進行中議題':'已封存議題 →';render()};
+$('bEdit').onclick=()=>{const t=topic(),a=prompt('議題名稱',t.title);if(!a)return;t.title=a;t.desc=prompt('議題說明',t.desc)??t.desc;save();render()};
+$('bArc').onclick=()=>{const t=topic();t.archived=!t.archived;const n=S.topics.find(x=>!x.archived);if(t.archived&&n)S.cur=n.id;showArch=false;save();render()};
+$('bDel').onclick=()=>{if(!confirm('確定刪除此議題？無法復原（建議先匯出 .md）'))return;S.topics=S.topics.filter(x=>x.id!==S.cur);if(!S.topics.length)S.topics.push({id:uid(),title:'新議題',desc:'',status:'進行中',round:0,members:S.bots.map(b=>b.id),msgs:[],used:0});S.cur=S.topics[0].id;save();render()};
+$('bStance').onclick=()=>{topic().stance='正式立場（人工確認）';save();render()};
+async function testProv(p,btn){btn.textContent='測試中…';
+ try{if(p.type==='puter'){await loadPuter();toast('puter.js 已載入')}
+  else{const h=p.key?{Authorization:'Bearer '+p.key}:{};const r=await fetch(p.base.replace(/\/$/,'')+(p.type==='ollama'?'/api/tags':'/models'),{headers:h});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();p.models=p.type==='ollama'?j.models.map(x=>x.name):j.data.map(x=>x.id);toast('連線成功，找到 '+p.models.length+' 個模型（可在模型欄下拉選擇）')}
+  save()}catch(err){toast('連線失敗：'+err.message)}drawSet()}
+$('tab3').onclick=()=>{tab=3;drawSet()};
+function drawSet(){if(tab===3)return drawGen();drawSet0();$('tab3').className='btn'}
+function drawGen(){
+ $('tab1').className='btn';$('tab2').className='btn';$('tab3').className='btn pri';
+ $('dBody').innerHTML=`<label>你的顯示名稱</label><input id="gMe" value="${esc(S.me)}">
+ <label>企業檔案／公司背景（會加入每位 Bot 的系統提示）</label><textarea id="gCo" rows="4" placeholder="例如：產業、產品、目標客群、本月業績目標與現況…">${esc(S.company)}</textarea>
+ <div class="row"><div><label>溫度（0–2）</label><input id="gT" type="number" step="0.1" min="0" max="2" value="${S.cfg.temp}"></div>
+ <div><label>單次最大輸出 token</label><input id="gM" type="number" min="50" value="${S.cfg.maxTok}"></div>
+ <div><label>只帶最近 N 則記錄（0=全部）</label><input id="gR" type="number" min="0" value="${S.cfg.recent}"></div></div>
+ <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:10px"><input id="gStrict" type="checkbox" style="width:auto" ${S.cfg.strict!==false?'checked':''}>事實嚴謹模式（不編造、不確定標「待查證」、溫度上限 0.3）</label>
+ <div class="row" style="margin-top:12px"><button class="btn" id="gExpAll">匯出全部議題 .md</button><button class="btn" id="gExpSet">匯出設定 .json</button><button class="btn" id="gImpSet">匯入設定 .json</button></div>
+ <p class="note">匯出設定不含 API Key。</p>
+ <h2 style="margin-top:14px">各議題用量（粗估）</h2>${S.topics.map(t=>`<div class="mem"><span>${esc(t.title)}</span><span style="margin-left:auto">${t.used.toLocaleString()}</span></div>`).join('')}`;
+ $('gMe').oninput=e=>{S.me=e.target.value||'使用者';save()};
+ $('gCo').oninput=e=>{S.company=e.target.value;save()};
+ $('gT').oninput=e=>{S.cfg.temp=+e.target.value;save()};
+ $('gM').oninput=e=>{S.cfg.maxTok=+e.target.value||600;save()};
+ $('gR').oninput=e=>{S.cfg.recent=Math.max(0,+e.target.value|0);save()};
+ $('gStrict').onchange=e=>{S.cfg.strict=e.target.checked;save()};
+ $('gExpAll').onclick=()=>dl('全部議題.md',S.topics.map(t=>toMd(t)).join('\n\n<!--=====TOPIC=====-->\n\n'),'text/markdown;charset=utf-8');
+ $('gExpSet').onclick=()=>dl('設定.json',JSON.stringify({bots:S.bots,providers:S.providers.map(p=>({...p,key:''})),active:S.active,me:S.me,company:S.company,cfg:S.cfg},null,1),'application/json');
+ $('gImpSet').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{try{const j=JSON.parse(await i.files[0].text());if(!j.bots||!j.providers)throw new Error('格式不符');Object.assign(S,{bots:j.bots,providers:j.providers,active:j.active||j.providers[0].id,me:j.me||S.me,company:j.company||'',cfg:j.cfg||S.cfg});S.topics.forEach(t=>t.members=t.members.filter(id=>bot(id)));save();render();drawGen();toast('已匯入設定')}catch(e){toast('匯入失敗：'+e.message)}};i.click()};
+}
+
+const grpOf=b=>(b.grp||'').split(/[,，、]/).map(x=>x.trim()).filter(Boolean);
+const allGroups=()=>[...new Set(S.bots.flatMap(grpOf))];
+function syncChips(){document.querySelectorAll('#mBody [data-g]').forEach(c=>{const ids=S.bots.filter(b=>grpOf(b).includes(c.dataset.g)).map(b=>b.id);const on=ids.every(id=>$('mBody').querySelector(`input[value="${id}"]`).checked);c.className='btn sm'+(on?' pri':'')})}
+function openMem(){const t=topic(),gs=allGroups();
+ $('mBody').innerHTML=`<div class="row" style="gap:6px;margin-bottom:8px"><button class="btn sm" data-all="1" style="flex:none;min-width:0">全選</button><button class="btn sm" data-all="0" style="flex:none;min-width:0">全不選</button></div>`+
+ (gs.length?`<div class="note">依部門／群組一次勾選（再按一次取消）：</div><div class="row" style="gap:6px;margin:6px 0 12px">${gs.map(g=>`<button class="btn sm" data-g="${esc(g)}" style="flex:none;min-width:0">${esc(g)}（${S.bots.filter(b=>grpOf(b).includes(g)).length}）</button>`).join('')}</div>`:'<p class="note">尚未設定部門／群組，可在「成員 Bot」頁為每位成員填寫。</p>')+
+ S.bots.map(b=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" style="width:auto" value="${b.id}" ${t.members.includes(b.id)?'checked':''}>${esc(b.name)}<span class="note">（${b.role}${grpOf(b).length?'・'+esc(grpOf(b).join('、')):''}）</span></label>`).join('');
+ syncChips();$('dlgM').showModal()}
+$('mBody').onclick=e=>{const b=e.target.closest('button');if(!b)return;const bx=[...$('mBody').querySelectorAll('input[type=checkbox]')];
+ if(b.dataset.all!=null)bx.forEach(x=>x.checked=b.dataset.all==='1');
+ if(b.dataset.g){const ids=S.bots.filter(k=>grpOf(k).includes(b.dataset.g)).map(k=>k.id),on=!ids.every(id=>bx.find(x=>x.value===id).checked);bx.forEach(x=>{if(ids.includes(x.value))x.checked=on})}
+ syncChips()};
+$('mBody').onchange=syncChips;
+$('mems').onclick=e=>{if(e.target.id==='bMem')openMem()};
+$('mOk').onclick=()=>{const ids=[...$('mBody').querySelectorAll('input:checked')].map(i=>i.value);if(!ids.length)return toast('至少選一位成員');if(!ids.some(id=>bot(id).role==='主管'))toast('提醒：未選主管 Bot，將不會有開場，彙整由第一位成員代理');topic().members=ids;save();$('dlgM').close();render()};
+
+$('bFacts').onclick=()=>{$('fTxt').value=topic().facts||'';$('dlgF').showModal()};
+$('fOk').onclick=()=>{topic().facts=$('fTxt').value.trim();save();$('dlgF').close();toast('已儲存已確認資料')};
+$('bVer').onclick=()=>{const t=topic();let ms=t.msgs.filter(x=>x.botId&&x.round===t.round);if(!ms.length)ms=t.msgs.filter(x=>x.botId).slice(-4);run(()=>verify(ms.map(x=>x.text)))};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function osm(q,signal){const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=zh-TW&q='+encodeURIComponent(q),{signal});if(!r.ok)throw new Error('地圖查詢 HTTP '+r.status);return (await r.json())[0]}
+async function verify(texts){
+ const t=topic(),m={kind:'bot',botId:null,name:'事實查核（OpenStreetMap 地圖資料庫）',role:'查核',round:t.round||1,tag:'自動查證，非正式立場',text:'查證中：先抽取地名…',ts:Date.now()};
+ t.msgs.push(m);render();abort=new AbortController();const sg=abort.signal;
+ try{
+  let raw='';for await(const ch of stream(prov(),[{role:'system',content:'你是資訊抽取器。只輸出 JSON 字串陣列，不要任何其他文字。'},{role:'user',content:`從下列文字抽出所有具名的地點、景點、店家、街道（盡量附城市，如「台南 赤崁樓」），最多 10 個並去重：\n\n${texts.join('\n\n')}`}],sg,{temp:0,max:400}))raw+=ch;
+  const names=JSON.parse((raw.match(/\[[\s\S]*\]/)||['[]'])[0]).map(String).slice(0,10);
+  if(!names.length)throw new Error('未抽取到具名地點');
+  const out=[];
+  for(const n of names){
+   if(sg.aborted)break;m.text=`查證中（${out.length}/${names.length}）：${n}`;renderChat();
+   let hit=await osm(n,sg);await sleep(1100);
+   if(!hit&&/\s/.test(n.trim())){hit=await osm(n.trim().split(/\s+/).slice(1).join(' '),sg);await sleep(1100)}
+   out.push(hit?`- ✅ ${n}：地圖有對應（${hit.display_name.slice(0,50)}）`:`- ⚠ ${n}：地圖資料庫查無，請勿直接採用，需人工確認`);
+  }
+  m.text='**查證結果**\n'+out.join('\n')+'\n\n⚠ 代表查無對應，可能是虛構、名稱不同或地圖未收錄；✅ 只代表地名存在，營業時間與細節仍需另行確認。';
+ }catch(e){m.text='查證失敗：'+(e.name==='AbortError'?'已停止':(e.message||e))+'。若為連線問題，請確認網路能存取 nominatim.openstreetmap.org。'}
+ save();render();
+}
+
+render();
+</script>
+</body>
+</html>

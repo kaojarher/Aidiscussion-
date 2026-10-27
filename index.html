@@ -81,7 +81,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
 <main>
  <aside class="card side tl" id="sList"><h2>議題列表</h2><input id="q" placeholder="搜尋議題或內容" style="margin-bottom:8px"><div id="tList"></div><button class="btn sm" id="bArch" style="margin-top:8px">已封存議題 →</button><div class="stack"><button class="btn" id="bNew">＋ 建立議題</button></div></aside>
  <section class="card center">
-  <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p><div class="acts"><button id="bEdit">編輯議題</button><button id="bArc">封存</button><button id="bDel">刪除</button></div></div>
+  <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p><div class="acts"><button id="bEdit">編輯議題</button><button id="bFacts">已確認資料</button><button id="bArc">封存</button><button id="bDel">刪除</button></div></div>
   <div id="chat" aria-live="polite"></div>
   <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出；可用 @顧問名稱 指定單一顧問回應）"></textarea><button class="btn pri" id="bSend">送出</button></div>
  </section>
@@ -90,7 +90,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
   <div id="mems"></div><hr>
   <dl id="info"></dl><div class="bar"><i id="barI"></i></div>
   <hr><h2>本議題操作</h2>
-  <div class="stack"><button class="btn" id="bRound"></button><button class="btn" id="bSum">請主管彙整結論</button><button class="btn" id="bStop" disabled>停止生成</button><button class="btn" id="bStance">標記為正式立場</button></div>
+  <div class="stack"><button class="btn" id="bRound"></button><button class="btn" id="bSum">請主管彙整結論</button><button class="btn" id="bVer">查證最新一輪地名</button><button class="btn" id="bStop" disabled>停止生成</button><button class="btn" id="bStance">標記為正式立場</button></div>
   <p class="note">系統不會自動開會：每一輪由你按下才進行；彙整是主管 Bot 的初步建議，不等於正式立場。</p>
  </aside>
 </main>
@@ -100,6 +100,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
  <div id="dBody"></div>
 </dialog>
 
+<dialog id="dlgF"><h2 style="margin-top:0">本議題已確認資料</h2><p class="note">貼上你已確認為真實的資訊（地點、營業時間、預算、官方網址等）。Bot 會優先依此討論，資料以外的內容會標示「待查證」。</p><textarea id="fTxt" rows="10"></textarea><div class="row" style="margin-top:12px"><button class="btn pri" id="fOk">儲存</button></div></dialog>
 <dialog id="dlgM"><h2 style="margin-top:0">選擇本議題參與成員</h2><div id="mBody"></div><p class="note">發言順序依「成員 Bot」設定中的排列順序。</p><div class="row" style="margin-top:12px"><button class="btn pri" id="mOk">完成</button></div></dialog>
 <script>
 const $=id=>document.getElementById(id);
@@ -154,7 +155,7 @@ function render(){
  $('info').innerHTML=`<dt>議題編號</dt><dd>T-${t.id.slice(0,4)}</dd><dt>討論狀態</dt><dd>${t.status}</dd><dt>已討論輪數</dt><dd>${t.round}（不限輪數）</dd><dt>立場狀態</dt><dd>${t.stance||'尚未建立'}</dd><dt>AI 用量（粗估）</dt><dd>${t.used.toLocaleString()} / ${LIMIT.toLocaleString()}</dd>`;
  $('barI').style.width=Math.min(100,t.used/LIMIT*100)+'%';
  $('bRound').textContent=t.round===0?'開始討論（第 1 輪）':'再討論一輪（不限輪數）';
- $('bRound').disabled=busy;$('bSum').disabled=busy||!t.msgs.length;$('bSend').disabled=busy;$('bStop').disabled=!busy;
+ $('bRound').disabled=busy;$('bSum').disabled=busy||!t.msgs.length;$('bVer').disabled=busy||!t.msgs.length;$('bSend').disabled=busy;$('bStop').disabled=!busy;
  renderChat();
 }
 const col=b=>COLORS[S.bots.indexOf(b)%COLORS.length];
@@ -218,10 +219,10 @@ async function speak(b,instruction,round,tag,redo){
  render();
  let ms=t.msgs.slice(0,upto).filter(x=>x.text);if(S.cfg.recent>0&&ms.length>S.cfg.recent)ms=ms.slice(-S.cfg.recent);
  const tr=ms.map(x=>`【${x.name}${x.kind==='human'?'（真人）':''}${x.round?' 第'+x.round+'輪':''}】\n${x.text}`).join('\n\n');
- const sys=`${b.prompt}\n${S.company?'企業背景：'+S.company+'\n':''}議題：${t.title}\n說明：${t.desc}\n規則：一律使用繁體中文；先簡短回應前面發言，再提出具體、可執行的內容；不編造數據，缺資料時列出需要確認的資訊；全文約 250 字內。`;
+ const sys=`${b.prompt}\n${S.company?'企業背景：'+S.company+'\n':''}議題：${t.title}\n說明：${t.desc}\n規則：一律使用繁體中文；先簡短回應前面發言，再提出具體、可執行的內容；不編造數據，缺資料時列出需要確認的資訊；全文約 250 字內。${S.cfg.strict!==false?'\n事實準則（必須遵守）：1.只提及你高度確定真實存在的具名地點、店家、活動與數據，不得編造或憑印象湊字；2.不確定時寫「【待查證】」並說明查證方式，寧可少列；3.每個具名地點後附（查證關鍵字：城市＋名稱）；4.若討論記錄中「事實查核」標示某地點查無對應，必須捨棄、不再推薦；5.已確認資料以外的內容須標明為一般知識且待查證。':''}${t.facts?'\n已確認資料（優先依據）：\n'+t.facts:''}`;
  const msgs=[{role:'system',content:sys},{role:'user',content:`目前討論記錄：\n${tr}\n\n${instruction}`}];
  abort=new AbortController();
- try{for await(const ch of stream(S.providers.find(x=>x.id===b.prov)||prov(),msgs,abort.signal,{temp:S.cfg.temp,max:S.cfg.maxTok})){m.text+=ch;renderChat()}}
+ try{for await(const ch of stream(S.providers.find(x=>x.id===b.prov)||prov(),msgs,abort.signal,{temp:S.cfg.strict!==false?Math.min(S.cfg.temp,0.3):S.cfg.temp,max:S.cfg.maxTok})){m.text+=ch;renderChat()}}
  catch(e){if(e.name!=='AbortError')m.text+=`\n\n⚠ 發生錯誤：${e.message||e}`+hint(String(e.message||e));else m.text+='\n\n（已停止）'}
  t.used+=Math.round((sys.length+msgs[1].content.length+m.text.length)/1.5);
  save();render();
@@ -261,7 +262,7 @@ $('bPanel').onclick=()=>{$('sList').classList.remove('open');$('sPanel').classLi
 
 /* ---------- markdown export / import ---------- */
 function toMd(t){
- const meta=JSON.stringify({title:t.title,desc:t.desc,status:t.status,round:t.round,used:t.used,members:t.members.map(id=>{const b=bot(id);return b&&{id:b.id,name:b.name,short:b.short,role:b.role,grp:b.grp||'',prompt:b.prompt}}).filter(Boolean)});
+ const meta=JSON.stringify({title:t.title,desc:t.desc,facts:t.facts||'',status:t.status,round:t.round,used:t.used,members:t.members.map(id=>{const b=bot(id);return b&&{id:b.id,name:b.name,short:b.short,role:b.role,grp:b.grp||'',prompt:b.prompt}}).filter(Boolean)});
  return `# ${t.title}\n\n<!--meta:${meta}-->\n\n> ${t.desc.replace(/\n/g,' ')}\n\n`+t.msgs.map(m=>`### @@ ${[m.name,m.kind,m.role||'',m.round??'',m.botId||'',m.tag||'',new Date(m.ts).toISOString()].map(x=>String(x).replace(/\|/g,'／')).join(' | ')}\n\n${m.text}\n`).join('\n');
 }
 $('bExp').onclick=()=>{
@@ -276,7 +277,7 @@ $('file').onchange=async e=>{
   const all=await f.text();for(const txt of all.split('<!--=====TOPIC=====-->')){if(!txt.trim())continue;
   const mm=txt.match(/<!--meta:(.*)-->/),meta=mm?JSON.parse(mm[1]):{};
   const title=meta.title||(txt.match(/^#\s+(.+)/m)||[])[1]||f.name.replace(/\.md$/,'');
-  const t={id:uid(),title,desc:meta.desc||'',status:meta.status||'進行中',round:meta.round||0,used:meta.used||0,members:[],msgs:[]};
+  const t={id:uid(),title,desc:meta.desc||'',facts:meta.facts||'',status:meta.status||'進行中',round:meta.round||0,used:meta.used||0,members:[],msgs:[]};
   for(const b of meta.members||[]){let x=S.bots.find(k=>k.id===b.id||k.name===b.name);if(!x){x={...b,id:b.id||uid()};S.bots.push(x)}t.members.push(x.id)}
   for(const blk of txt.split(/^### @@ /m).slice(1)){
    const i=blk.indexOf('\n'),h=blk.slice(0,i).split(' | ').map(s=>s.trim()),body=blk.slice(i+1).replace(/\n+$/,'').trim();
@@ -337,10 +338,11 @@ $('dBody').addEventListener('change',e=>{if(e.target.dataset.f==='type'||e.targe
 let showArch=false;
 function listed(){const q=($('q').value||'').toLowerCase();return S.topics.filter(x=>!!x.archived===showArch&&(!q||(x.title+x.desc+x.msgs.map(m=>m.text).join(' ')).toLowerCase().includes(q)))}
 const dl=(name,text,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
-const acts=(m,i)=>busy?'':`<div class="acts"><button data-a="copy" data-i="${i}">複製</button>${m.kind==='bot'?`<button data-a="re" data-i="${i}">重新生成</button>`:''}<button data-a="del" data-i="${i}">刪除</button></div>`;
+const acts=(m,i)=>busy?'':`<div class="acts"><button data-a="copy" data-i="${i}">複製</button>${m.kind==='bot'&&m.botId?`<button data-a="re" data-i="${i}">重新生成</button><button data-a="ver" data-i="${i}">查證地名</button>`:''}<button data-a="del" data-i="${i}">刪除</button></div>`;
 $('chat').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const t=topic(),i=+b.dataset.i,m=t.msgs[i];if(!m)return;
  if(b.dataset.a==='copy'){navigator.clipboard?.writeText(m.text);toast('已複製')}
  if(b.dataset.a==='del'){t.msgs.splice(i,1);save();render()}
+ if(b.dataset.a==='ver')run(()=>verify([m.text]));
  if(b.dataset.a==='re'&&bot(m.botId))run(()=>speak(bot(m.botId),m.instr||'請依你的專業對此議題提出建議。',m.round,m.tag,m))};
 $('q').oninput=render;
 $('bArch').onclick=()=>{showArch=!showArch;$('bArch').textContent=showArch?'← 回進行中議題':'已封存議題 →';render()};
@@ -361,6 +363,7 @@ function drawGen(){
  <div class="row"><div><label>溫度（0–2）</label><input id="gT" type="number" step="0.1" min="0" max="2" value="${S.cfg.temp}"></div>
  <div><label>單次最大輸出 token</label><input id="gM" type="number" min="50" value="${S.cfg.maxTok}"></div>
  <div><label>只帶最近 N 則記錄（0=全部）</label><input id="gR" type="number" min="0" value="${S.cfg.recent}"></div></div>
+ <label style="display:flex;gap:8px;align-items:center;color:var(--ink);margin-top:10px"><input id="gStrict" type="checkbox" style="width:auto" ${S.cfg.strict!==false?'checked':''}>事實嚴謹模式（不編造、不確定標「待查證」、溫度上限 0.3）</label>
  <div class="row" style="margin-top:12px"><button class="btn" id="gExpAll">匯出全部議題 .md</button><button class="btn" id="gExpSet">匯出設定 .json</button><button class="btn" id="gImpSet">匯入設定 .json</button></div>
  <p class="note">匯出設定不含 API Key。</p>
  <h2 style="margin-top:14px">各議題用量（粗估）</h2>${S.topics.map(t=>`<div class="mem"><span>${esc(t.title)}</span><span style="margin-left:auto">${t.used.toLocaleString()}</span></div>`).join('')}`;
@@ -369,6 +372,7 @@ function drawGen(){
  $('gT').oninput=e=>{S.cfg.temp=+e.target.value;save()};
  $('gM').oninput=e=>{S.cfg.maxTok=+e.target.value||600;save()};
  $('gR').oninput=e=>{S.cfg.recent=Math.max(0,+e.target.value|0);save()};
+ $('gStrict').onchange=e=>{S.cfg.strict=e.target.checked;save()};
  $('gExpAll').onclick=()=>dl('全部議題.md',S.topics.map(t=>toMd(t)).join('\n\n<!--=====TOPIC=====-->\n\n'),'text/markdown;charset=utf-8');
  $('gExpSet').onclick=()=>dl('設定.json',JSON.stringify({bots:S.bots,providers:S.providers.map(p=>({...p,key:''})),active:S.active,me:S.me,company:S.company,cfg:S.cfg},null,1),'application/json');
  $('gImpSet').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{try{const j=JSON.parse(await i.files[0].text());if(!j.bots||!j.providers)throw new Error('格式不符');Object.assign(S,{bots:j.bots,providers:j.providers,active:j.active||j.providers[0].id,me:j.me||S.me,company:j.company||'',cfg:j.cfg||S.cfg});S.topics.forEach(t=>t.members=t.members.filter(id=>bot(id)));save();render();drawGen();toast('已匯入設定')}catch(e){toast('匯入失敗：'+e.message)}};i.click()};
@@ -389,6 +393,30 @@ $('mBody').onclick=e=>{const b=e.target.closest('button');if(!b)return;const bx=
 $('mBody').onchange=syncChips;
 $('mems').onclick=e=>{if(e.target.id==='bMem')openMem()};
 $('mOk').onclick=()=>{const ids=[...$('mBody').querySelectorAll('input:checked')].map(i=>i.value);if(!ids.length)return toast('至少選一位成員');if(!ids.some(id=>bot(id).role==='主管'))toast('提醒：未選主管 Bot，將不會有開場，彙整由第一位成員代理');topic().members=ids;save();$('dlgM').close();render()};
+
+$('bFacts').onclick=()=>{$('fTxt').value=topic().facts||'';$('dlgF').showModal()};
+$('fOk').onclick=()=>{topic().facts=$('fTxt').value.trim();save();$('dlgF').close();toast('已儲存已確認資料')};
+$('bVer').onclick=()=>{const t=topic();let ms=t.msgs.filter(x=>x.botId&&x.round===t.round);if(!ms.length)ms=t.msgs.filter(x=>x.botId).slice(-4);run(()=>verify(ms.map(x=>x.text)))};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function osm(q,signal){const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=zh-TW&q='+encodeURIComponent(q),{signal});if(!r.ok)throw new Error('地圖查詢 HTTP '+r.status);return (await r.json())[0]}
+async function verify(texts){
+ const t=topic(),m={kind:'bot',botId:null,name:'事實查核（OpenStreetMap 地圖資料庫）',role:'查核',round:t.round||1,tag:'自動查證，非正式立場',text:'查證中：先抽取地名…',ts:Date.now()};
+ t.msgs.push(m);render();abort=new AbortController();const sg=abort.signal;
+ try{
+  let raw='';for await(const ch of stream(prov(),[{role:'system',content:'你是資訊抽取器。只輸出 JSON 字串陣列，不要任何其他文字。'},{role:'user',content:`從下列文字抽出所有具名的地點、景點、店家、街道（盡量附城市，如「台南 赤崁樓」），最多 10 個並去重：\n\n${texts.join('\n\n')}`}],sg,{temp:0,max:400}))raw+=ch;
+  const names=JSON.parse((raw.match(/\[[\s\S]*\]/)||['[]'])[0]).map(String).slice(0,10);
+  if(!names.length)throw new Error('未抽取到具名地點');
+  const out=[];
+  for(const n of names){
+   if(sg.aborted)break;m.text=`查證中（${out.length}/${names.length}）：${n}`;renderChat();
+   let hit=await osm(n,sg);await sleep(1100);
+   if(!hit&&/\s/.test(n.trim())){hit=await osm(n.trim().split(/\s+/).slice(1).join(' '),sg);await sleep(1100)}
+   out.push(hit?`- ✅ ${n}：地圖有對應（${hit.display_name.slice(0,50)}）`:`- ⚠ ${n}：地圖資料庫查無，請勿直接採用，需人工確認`);
+  }
+  m.text='**查證結果**\n'+out.join('\n')+'\n\n⚠ 代表查無對應，可能是虛構、名稱不同或地圖未收錄；✅ 只代表地名存在，營業時間與細節仍需另行確認。';
+ }catch(e){m.text='查證失敗：'+(e.name==='AbortError'?'已停止':(e.message||e))+'。若為連線問題，請確認網路能存取 nominatim.openstreetmap.org。'}
+ save();render();
+}
 
 render();
 </script>
