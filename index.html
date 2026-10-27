@@ -100,6 +100,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
  <div id="dBody"></div>
 </dialog>
 
+<dialog id="dlgM"><h2 style="margin-top:0">選擇本議題參與成員</h2><div id="mBody"></div><p class="note">發言順序依「成員 Bot」設定中的排列順序。</p><div class="row" style="margin-top:12px"><button class="btn pri" id="mOk">完成</button></div></dialog>
 <script>
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -148,7 +149,7 @@ function render(){
  $('provLbl').textContent='LLM：'+prov().name.split('（')[0]+' / '+prov().model;
  $('tList').innerHTML=listed().map(x=>`<button class="t ${x.id===t.id?'on':''}" data-id="${x.id}">${esc(x.title)}</button>`).join('');
  $('tTitle').textContent=t.title;$('tBadge').textContent=t.status+(t.archived?'・已封存':'');$('bArc').textContent=t.archived?'還原':'封存';$('tDesc').textContent=t.desc;
- $('mems').innerHTML='<h2 style="margin-top:0">參與成員</h2>'+`<div class="mem"><span class="dot" style="background:#2f6fd0"></span>${esc(S.me)}</div>`+
+ $('mems').innerHTML='<h2 style="margin-top:0">參與成員 <button class="btn sm" id="bMem" style="float:right" '+(busy?'disabled':'')+'>選擇</button></h2>'+`<div class="mem"><span class="dot" style="background:#2f6fd0"></span>${esc(S.me)}</div>`+
   t.members.map(id=>bot(id)).filter(Boolean).map(b=>`<div class="mem"><span class="dot" style="background:${col(b)}"></span><span>${esc(b.name)}</span><span class="note">（${b.role}）</span></div>`).join('');
  $('info').innerHTML=`<dt>議題編號</dt><dd>T-${t.id.slice(0,4)}</dd><dt>討論狀態</dt><dd>${t.status}</dd><dt>已討論輪數</dt><dd>${t.round}（不限輪數）</dd><dt>立場狀態</dt><dd>${t.stance||'尚未建立'}</dd><dt>AI 用量（粗估）</dt><dd>${t.used.toLocaleString()} / ${LIMIT.toLocaleString()}</dd>`;
  $('barI').style.width=Math.min(100,t.used/LIMIT*100)+'%';
@@ -253,7 +254,7 @@ $('tList').onclick=e=>{const b=e.target.closest('button.t');if(b){S.cur=b.datase
 $('bNew').onclick=()=>{
  const title=prompt('議題名稱');if(!title)return;const desc=prompt('議題說明（可留空）')||'';
  const t={id:uid(),title,desc,status:'進行中',round:0,members:S.bots.map(b=>b.id),msgs:[],used:0};
- S.topics.push(t);S.cur=t.id;save();render();$('sList').classList.remove('open');
+ S.topics.push(t);S.cur=t.id;save();render();$('sList').classList.remove('open');openMem();
 };
 $('bList').onclick=()=>{$('sPanel').classList.remove('open');$('sList').classList.toggle('open')};
 $('bPanel').onclick=()=>{$('sList').classList.remove('open');$('sPanel').classList.toggle('open')};
@@ -372,6 +373,10 @@ function drawGen(){
  $('gExpSet').onclick=()=>dl('設定.json',JSON.stringify({bots:S.bots,providers:S.providers.map(p=>({...p,key:''})),active:S.active,me:S.me,company:S.company,cfg:S.cfg},null,1),'application/json');
  $('gImpSet').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{try{const j=JSON.parse(await i.files[0].text());if(!j.bots||!j.providers)throw new Error('格式不符');Object.assign(S,{bots:j.bots,providers:j.providers,active:j.active||j.providers[0].id,me:j.me||S.me,company:j.company||'',cfg:j.cfg||S.cfg});S.topics.forEach(t=>t.members=t.members.filter(id=>bot(id)));save();render();drawGen();toast('已匯入設定')}catch(e){toast('匯入失敗：'+e.message)}};i.click()};
 }
+
+function openMem(){const t=topic();$('mBody').innerHTML=S.bots.map(b=>`<label style="display:flex;gap:8px;align-items:center;color:var(--ink);font-size:15px"><input type="checkbox" style="width:auto" value="${b.id}" ${t.members.includes(b.id)?'checked':''}>${esc(b.name)}<span class="note">（${b.role}）</span></label>`).join('');$('dlgM').showModal()}
+$('mems').onclick=e=>{if(e.target.id==='bMem')openMem()};
+$('mOk').onclick=()=>{const ids=[...$('mBody').querySelectorAll('input:checked')].map(i=>i.value);if(!ids.length)return toast('至少選一位成員');if(!ids.some(id=>bot(id).role==='主管'))toast('提醒：未選主管 Bot，將不會有開場，彙整由第一位成員代理');topic().members=ids;save();$('dlgM').close();render()};
 
 render();
 </script>
