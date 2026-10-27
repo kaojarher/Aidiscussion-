@@ -55,6 +55,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
 .item{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
 .item.act{border-color:var(--navy)}
 .tabs{display:flex;gap:6px;margin-bottom:8px}.tabs .btn.pri{pointer-events:none}
+.acts{margin-top:4px;display:flex;gap:6px}.acts button{border:0;background:transparent;color:var(--mute);font-size:12px;cursor:pointer;padding:0 4px}.acts button:hover{color:var(--navy)}
 .toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:var(--navy);color:var(--panel);padding:8px 14px;border-radius:9px;z-index:99}
 :focus-visible{outline:2px solid var(--navy);outline-offset:2px}
 @media(max-width:1020px){
@@ -78,24 +79,24 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
  <input type="file" id="file" accept=".md,text/markdown" hidden>
 </header>
 <main>
- <aside class="card side tl" id="sList"><h2>議題列表</h2><div id="tList"></div><div class="stack"><button class="btn" id="bNew">＋ 建立議題</button></div></aside>
+ <aside class="card side tl" id="sList"><h2>議題列表</h2><input id="q" placeholder="搜尋議題或內容" style="margin-bottom:8px"><div id="tList"></div><button class="btn sm" id="bArch" style="margin-top:8px">已封存議題 →</button><div class="stack"><button class="btn" id="bNew">＋ 建立議題</button></div></aside>
  <section class="card center">
-  <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p></div>
+  <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p><div class="acts"><button id="bEdit">編輯議題</button><button id="bArc">封存</button><button id="bDel">刪除</button></div></div>
   <div id="chat" aria-live="polite"></div>
-  <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出）"></textarea><button class="btn pri" id="bSend">送出</button></div>
+  <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出；可用 @顧問名稱 指定單一顧問回應）"></textarea><button class="btn pri" id="bSend">送出</button></div>
  </section>
  <aside class="card side" id="sPanel">
   <h2>議題工作面板</h2>
   <div id="mems"></div><hr>
   <dl id="info"></dl><div class="bar"><i id="barI"></i></div>
   <hr><h2>本議題操作</h2>
-  <div class="stack"><button class="btn" id="bRound"></button><button class="btn" id="bSum">請主管彙整結論</button><button class="btn" id="bStop" disabled>停止生成</button></div>
+  <div class="stack"><button class="btn" id="bRound"></button><button class="btn" id="bSum">請主管彙整結論</button><button class="btn" id="bStop" disabled>停止生成</button><button class="btn" id="bStance">標記為正式立場</button></div>
   <p class="note">系統不會自動開會：每一輪由你按下才進行；彙整是主管 Bot 的初步建議，不等於正式立場。</p>
  </aside>
 </main>
 
 <dialog id="dlg">
- <div class="tabs"><button class="btn pri" id="tab1">LLM 提供者</button><button class="btn" id="tab2">成員 Bot</button><span style="flex:1"></span><button class="btn" id="bClose">完成</button></div>
+ <div class="tabs"><button class="btn pri" id="tab1">LLM 提供者</button><button class="btn" id="tab2">成員 Bot</button><button class="btn" id="tab3">一般與資料</button><span style="flex:1"></span><button class="btn" id="bClose">完成</button></div>
  <div id="dBody"></div>
 </dialog>
 
@@ -123,6 +124,7 @@ function defaults(){
 }
 let S;try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
 if(!S||!S.topics)S=defaults();
+if(!S.cfg)S.cfg={temp:0.7,maxTok:600,recent:0};if(S.company==null)S.company='';
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const topic=()=>S.topics.find(t=>t.id===S.cur)||S.topics[0];
 const bot=id=>S.bots.find(b=>b.id===id);
@@ -144,11 +146,11 @@ function md(t){
 function render(){
  const t=topic();
  $('provLbl').textContent='LLM：'+prov().name.split('（')[0]+' / '+prov().model;
- $('tList').innerHTML=S.topics.map(x=>`<button class="t ${x.id===t.id?'on':''}" data-id="${x.id}">${esc(x.title)}</button>`).join('');
- $('tTitle').textContent=t.title;$('tBadge').textContent=t.status;$('tDesc').textContent=t.desc;
+ $('tList').innerHTML=listed().map(x=>`<button class="t ${x.id===t.id?'on':''}" data-id="${x.id}">${esc(x.title)}</button>`).join('');
+ $('tTitle').textContent=t.title;$('tBadge').textContent=t.status+(t.archived?'・已封存':'');$('bArc').textContent=t.archived?'還原':'封存';$('tDesc').textContent=t.desc;
  $('mems').innerHTML='<h2 style="margin-top:0">參與成員</h2>'+`<div class="mem"><span class="dot" style="background:#2f6fd0"></span>${esc(S.me)}</div>`+
   t.members.map(id=>bot(id)).filter(Boolean).map(b=>`<div class="mem"><span class="dot" style="background:${col(b)}"></span><span>${esc(b.name)}</span><span class="note">（${b.role}）</span></div>`).join('');
- $('info').innerHTML=`<dt>議題編號</dt><dd>T-${t.id.slice(0,4)}</dd><dt>討論狀態</dt><dd>${t.status}</dd><dt>已討論輪數</dt><dd>${t.round}（不限輪數）</dd><dt>AI 用量</dt><dd>${t.used.toLocaleString()} / ${LIMIT.toLocaleString()}</dd>`;
+ $('info').innerHTML=`<dt>議題編號</dt><dd>T-${t.id.slice(0,4)}</dd><dt>討論狀態</dt><dd>${t.status}</dd><dt>已討論輪數</dt><dd>${t.round}（不限輪數）</dd><dt>立場狀態</dt><dd>${t.stance||'尚未建立'}</dd><dt>AI 用量（粗估）</dt><dd>${t.used.toLocaleString()} / ${LIMIT.toLocaleString()}</dd>`;
  $('barI').style.width=Math.min(100,t.used/LIMIT*100)+'%';
  $('bRound').textContent=t.round===0?'開始討論（第 1 輪）':'再討論一輪（不限輪數）';
  $('bRound').disabled=busy;$('bSum').disabled=busy||!t.msgs.length;$('bSend').disabled=busy;$('bStop').disabled=!busy;
@@ -157,10 +159,10 @@ function render(){
 const col=b=>COLORS[S.bots.indexOf(b)%COLORS.length];
 function renderChat(){
  const t=topic(),c=$('chat'),stick=c.scrollHeight-c.scrollTop-c.clientHeight<80;
- c.innerHTML=t.msgs.length?t.msgs.map(m=>{
-  if(m.kind==='human')return `<div class="msg me"><div class="av" style="background:#2f6fd0">${esc(m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>真人 ${fmt(m.ts)}</div><div class="txt">${md(m.text)}</div></div></div>`;
+ c.innerHTML=t.msgs.length?t.msgs.map((m,i)=>{
+  if(m.kind==='human')return `<div class="msg me"><div class="av" style="background:#2f6fd0">${esc(m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>真人 ${fmt(m.ts)}</div><div class="txt">${md(m.text)}</div>${acts(m,i)}</div></div>`;
   const b=bot(m.botId)||{short:m.name[0],id:''};
-  return `<div class="msg"><div class="av" style="background:${bot(m.botId)?col(bot(m.botId)):'#777'}">${esc(b.short||m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>${esc(m.role||'')} Bot<span class="tag r">${m.round?'第 '+m.round+' 輪':'彙整'}</span><span class="tag w">${esc(m.tag||SUP_TAG)}</span>${fmt(m.ts)}</div><div class="txt">${m.text?md(m.text):'<span class="note">思考中…</span>'}</div></div></div>`}).join('')
+  return `<div class="msg"><div class="av" style="background:${bot(m.botId)?col(bot(m.botId)):'#777'}">${esc(b.short||m.name[0])}</div><div class="bub"><div class="meta"><b>${esc(m.name)}</b>${esc(m.role||'')} Bot<span class="tag r">${m.round?'第 '+m.round+' 輪':'彙整'}</span><span class="tag w">${esc(m.tag||SUP_TAG)}</span>${fmt(m.ts)}</div><div class="txt">${m.text?md(m.text):'<span class="note">思考中…</span>'}</div>${acts(m,i)}</div></div>`}).join('')
   :'<p class="note">尚無對話。先輸入議題內容，再按右側「開始討論」。</p>';
  if(stick)c.scrollTop=c.scrollHeight;
 }
@@ -179,18 +181,18 @@ function loadPuter(){
  });
  return puterP;
 }
-async function* stream(p,msgs,signal){
+async function* stream(p,msgs,signal,o={}){
  if(p.type==='puter'){
   await loadPuter();
-  const r=await puter.ai.chat(msgs,{model:p.model||undefined,stream:true});
+  const r=await puter.ai.chat(msgs,{model:p.model||undefined,stream:true,temperature:o.temp,max_tokens:o.max});
   for await(const part of r){if(signal.aborted)return;if(part?.text)yield part.text}
  }else if(p.type==='ollama'){
-  const res=await fetch(p.base.replace(/\/$/,'')+'/api/chat',{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:p.model,messages:msgs,stream:true})});
+  const res=await fetch(p.base.replace(/\/$/,'')+'/api/chat',{method:'POST',signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:p.model,messages:msgs,stream:true,options:{temperature:o.temp,num_predict:o.max}})});
   if(!res.ok)throw new Error('Ollama 回應 '+res.status+'：'+await res.text());
   yield* lines(res,l=>{const j=JSON.parse(l);return j.message?.content||''});
  }else{
   const h={'Content-Type':'application/json'};if(p.key)h.Authorization='Bearer '+p.key;
-  const res=await fetch(p.base.replace(/\/$/,'')+'/chat/completions',{method:'POST',signal,headers:h,body:JSON.stringify({model:p.model,messages:msgs,stream:true})});
+  const res=await fetch(p.base.replace(/\/$/,'')+'/chat/completions',{method:'POST',signal,headers:h,body:JSON.stringify({model:p.model,messages:msgs,stream:true,temperature:o.temp,max_tokens:o.max})});
   if(!res.ok)throw new Error('LLM 回應 '+res.status+'：'+await res.text());
   yield* lines(res,l=>{l=l.replace(/^data:\s*/,'');if(!l||l==='[DONE]')return'';return JSON.parse(l).choices?.[0]?.delta?.content||''});
  }
@@ -203,15 +205,23 @@ async function* lines(res,fn){
 }
 const transcript=t=>t.msgs.filter(m=>m.text).map(m=>`【${m.name}${m.kind==='human'?'（真人）':''}${m.round?' 第'+m.round+'輪':''}】\n${m.text}`).join('\n\n');
 
-async function speak(b,instruction,round,tag){
- const t=topic();
- const m={kind:'bot',botId:b.id,name:b.name,role:b.role,round,tag,text:'',ts:Date.now()};
- t.msgs.push(m);render();
- const sys=`${b.prompt}\n議題：${t.title}\n說明：${t.desc}\n規則：一律使用繁體中文；先簡短回應前面發言，再提出具體、可執行的內容；不編造數據，缺資料時列出需要確認的資訊；全文約 250 字內。`;
- const msgs=[{role:'system',content:sys},{role:'user',content:`目前討論記錄：\n${transcript(t)}\n\n${instruction}`}];
+function hint(msg){
+ if(/failed to load|resource limitation|out of memory|OOM/i.test(msg))return '\n\n💡 這是模型伺服器端載入失敗（多半是記憶體或顯存不足），不是本工具的問題。請改用較小的模型（如 gemma3:12b、gemma3:4b），並確認沒有其他模型佔用顯存。';
+ if(/Failed to fetch|NetworkError/i.test(msg))return '\n\n💡 無法連線：請確認服務已啟動、Base URL 正確，且已允許 CORS。';
+ return '';
+}
+async function speak(b,instruction,round,tag,redo){
+ const t=topic();let m,upto;
+ if(redo){m=redo;upto=t.msgs.indexOf(m);m.text=''}
+ else{m={kind:'bot',botId:b.id,name:b.name,role:b.role,round,tag,text:'',ts:Date.now(),instr:instruction};t.msgs.push(m);upto=t.msgs.length-1}
+ render();
+ let ms=t.msgs.slice(0,upto).filter(x=>x.text);if(S.cfg.recent>0&&ms.length>S.cfg.recent)ms=ms.slice(-S.cfg.recent);
+ const tr=ms.map(x=>`【${x.name}${x.kind==='human'?'（真人）':''}${x.round?' 第'+x.round+'輪':''}】\n${x.text}`).join('\n\n');
+ const sys=`${b.prompt}\n${S.company?'企業背景：'+S.company+'\n':''}議題：${t.title}\n說明：${t.desc}\n規則：一律使用繁體中文；先簡短回應前面發言，再提出具體、可執行的內容；不編造數據，缺資料時列出需要確認的資訊；全文約 250 字內。`;
+ const msgs=[{role:'system',content:sys},{role:'user',content:`目前討論記錄：\n${tr}\n\n${instruction}`}];
  abort=new AbortController();
- try{for await(const ch of stream(prov(),msgs,abort.signal)){m.text+=ch;renderChat()}}
- catch(e){if(e.name!=='AbortError')m.text+=`\n\n⚠ 發生錯誤：${e.message||e}`;else m.text+='\n\n（已停止）'}
+ try{for await(const ch of stream(S.providers.find(x=>x.id===b.prov)||prov(),msgs,abort.signal,{temp:S.cfg.temp,max:S.cfg.maxTok})){m.text+=ch;renderChat()}}
+ catch(e){if(e.name!=='AbortError')m.text+=`\n\n⚠ 發生錯誤：${e.message||e}`+hint(String(e.message||e));else m.text+='\n\n（已停止）'}
  t.used+=Math.round((sys.length+msgs[1].content.length+m.text.length)/1.5);
  save();render();
 }
@@ -229,12 +239,14 @@ $('bRound').onclick=()=>run(async()=>{
 $('bSum').onclick=()=>run(async()=>{
  const t=topic(),sup=bot(t.members.find(id=>bot(id)?.role==='主管'))||t.members.map(bot)[0];
  await speak(sup,'請彙整以上討論：1.共識 2.分歧 3.建議行動方案（含負責人與期限）4.待確認事項。條列呈現。',0,'彙整結論（初步建議，非正式立場）');
- t.status='已彙整';
+ t.status='已彙整';t.stance='主管初步建議（尚未確認）';
 });
 $('bStop').onclick=()=>abort?.abort();
 $('bSend').onclick=send;
 $('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send()}});
-function send(){const v=$('inp').value.trim();if(!v||busy)return;topic().msgs.push({kind:'human',name:S.me,text:v,ts:Date.now()});$('inp').value='';save();render()}
+function send(){const v=$('inp').value.trim();if(!v||busy)return;const t=topic();t.msgs.push({kind:'human',name:S.me,text:v,ts:Date.now()});$('inp').value='';save();render();
+ const ms=t.members.map(bot).filter(b=>b&&v.includes('@'+b.name.split(' ')[0]));
+ if(ms.length)run(async()=>{for(const b of ms)await speak(b,'請直接、具體地回應真人最新的提問或指示。',t.round||1,SUP_TAG)})}
 
 /* ---------- topics ---------- */
 $('tList').onclick=e=>{const b=e.target.closest('button.t');if(b){S.cur=b.dataset.id;save();render();$('sList').classList.remove('open')}};
@@ -260,7 +272,7 @@ $('bImp').onclick=()=>$('file').click();
 $('file').onchange=async e=>{
  const f=e.target.files[0];if(!f)return;e.target.value='';
  try{
-  const txt=await f.text();
+  const all=await f.text();for(const txt of all.split('<!--=====TOPIC=====-->')){if(!txt.trim())continue;
   const mm=txt.match(/<!--meta:(.*)-->/),meta=mm?JSON.parse(mm[1]):{};
   const title=meta.title||(txt.match(/^#\s+(.+)/m)||[])[1]||f.name.replace(/\.md$/,'');
   const t={id:uid(),title,desc:meta.desc||'',status:meta.status||'進行中',round:meta.round||0,used:meta.used||0,members:[],msgs:[]};
@@ -273,7 +285,7 @@ $('file').onchange=async e=>{
    t.msgs.push(m);
   }
   if(!t.members.length)t.members=S.bots.map(b=>b.id);
-  S.topics.push(t);S.cur=t.id;save();render();toast('已匯入：'+title);
+  S.topics.push(t);S.cur=t.id;save();render();toast('已匯入：'+title)}
  }catch(err){toast('匯入失敗：'+err.message)}
 };
 
@@ -283,23 +295,23 @@ const dlg=$('dlg');
 $('bSet').onclick=()=>{drawSet();dlg.showModal()};
 $('bClose').onclick=()=>{save();dlg.close();render()};
 $('tab1').onclick=()=>{tab=1;drawSet()};$('tab2').onclick=()=>{tab=2;drawSet()};
-function drawSet(){
+function drawSet0(){
  $('tab1').className='btn'+(tab===1?' pri':'');$('tab2').className='btn'+(tab===2?' pri':'');
  const B=$('dBody');
  if(tab===1){
   B.innerHTML=S.providers.map(p=>`<div class="item ${p.id===S.active?'act':''}" data-id="${p.id}">
-   <div class="row"><label style="margin:0"><input type="radio" name="act" style="width:auto" ${p.id===S.active?'checked':''} data-f="act"> 使用此提供者</label><button class="btn sm" data-f="del" style="flex:none;min-width:0">刪除</button></div>
+   <div class="row"><label style="margin:0"><input type="radio" name="act" style="width:auto" ${p.id===S.active?'checked':''} data-f="act"> 使用此提供者</label><button class="btn sm" data-f="test" style="flex:none;min-width:0">測試連線</button><button class="btn sm" data-f="del" style="flex:none;min-width:0">刪除</button></div>
    <div class="row"><div><label>名稱</label><input data-f="name" value="${esc(p.name)}"></div>
    <div><label>類型</label><select data-f="type">${[['puter','Puter AI'],['ollama','Ollama'],['openai','OpenAI 相容 API（地端）']].map(([v,l])=>`<option value="${v}" ${p.type===v?'selected':''}>${l}</option>`).join('')}</select></div></div>
    <div class="row"><div><label>Base URL</label><input data-f="base" value="${esc(p.base)}" placeholder="Puter 不需填"></div>
-   <div><label>模型</label><input data-f="model" value="${esc(p.model)}"></div></div>
+   <div><label>模型</label><input data-f="model" list="dl-${p.id}" value="${esc(p.model)}"><datalist id="dl-${p.id}">${(p.models||[]).map(x=>`<option value="${esc(x)}">`).join('')}</datalist></div></div>
    <label>API Key（選填）</label><input data-f="key" type="password" value="${esc(p.key)}"></div>`).join('')+
   `<button class="btn" id="addP">＋ 新增自訂 LLM</button>
-   <p class="note">Ollama 從本機檔案開啟頁面時，需先設定環境變數 OLLAMA_ORIGINS=* 再重啟；地端 OpenAI 相容服務需開啟 CORS。設定僅存於本機瀏覽器。</p>`;
+   <p class="note">Ollama 從本機檔案開啟頁面時，需先設定環境變數 OLLAMA_ORIGINS=* 再重啟；地端 OpenAI 相容服務需開啟 CORS。設定僅存於本機瀏覽器；API Key 為明文儲存，請勿在共用電腦使用。</p>`;
  }else{
   B.innerHTML=S.bots.map(b=>`<div class="item" data-id="${b.id}"><div class="row"><div><label>名稱</label><input data-f="name" value="${esc(b.name)}"></div>
    <div><label>角色</label><select data-f="role">${['主管','專業'].map(r=>`<option ${b.role===r?'selected':''}>${r}</option>`).join('')}</select></div>
-   <button class="btn sm" data-f="delb" style="flex:none;min-width:0">刪除</button></div>
+   <div><label>使用的 LLM</label><select data-f="prov"><option value="">跟隨預設</option>${S.providers.map(p=>`<option value="${p.id}" ${b.prov===p.id?'selected':''}>${esc(p.name.split('（')[0])}</option>`).join('')}</select></div><button class="btn sm" data-f="delb" style="flex:none;min-width:0">刪除</button></div>
    <label>角色提示詞</label><textarea rows="3" data-f="prompt">${esc(b.prompt)}</textarea></div>`).join('')+`<button class="btn" id="addB">＋ 新增成員 Bot</button>`;
  }
 }
@@ -314,10 +326,52 @@ $('dBody').addEventListener('click',e=>{
  if(e.target.id==='addB'){const b={id:uid(),name:'新顧問',short:'新',role:'專業',prompt:'你是一位專業顧問，請從你的專業角度分析議題。'};S.bots.push(b);S.topics.forEach(t=>t.members.push(b.id));save();drawSet();return}
  if(!it)return;
  if(f==='act'){S.active=it.dataset.id;save();drawSet()}
+ if(f==='test')testProv(S.providers.find(x=>x.id===it.dataset.id),e.target);
  if(f==='del'){if(S.providers.length<2)return toast('至少保留一個提供者');S.providers=S.providers.filter(p=>p.id!==it.dataset.id);if(S.active===it.dataset.id)S.active=S.providers[0].id;save();drawSet()}
  if(f==='delb'){if(S.bots.length<2)return toast('至少保留一位成員');S.bots=S.bots.filter(b=>b.id!==it.dataset.id);S.topics.forEach(t=>t.members=t.members.filter(m=>m!==it.dataset.id));save();drawSet()}
 });
 $('dBody').addEventListener('change',e=>{if(e.target.dataset.f==='type'||e.target.dataset.f==='role'){const it=e.target.closest('.item');if(e.target.dataset.f==='type'){const p=S.providers.find(x=>x.id===it.dataset.id);if(p.type==='puter'&&!p.model)p.model='gpt-4o-mini'}drawSet()}});
+
+/* ---------- v2 additions ---------- */
+let showArch=false;
+function listed(){const q=($('q').value||'').toLowerCase();return S.topics.filter(x=>!!x.archived===showArch&&(!q||(x.title+x.desc+x.msgs.map(m=>m.text).join(' ')).toLowerCase().includes(q)))}
+const dl=(name,text,type)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+const acts=(m,i)=>busy?'':`<div class="acts"><button data-a="copy" data-i="${i}">複製</button>${m.kind==='bot'?`<button data-a="re" data-i="${i}">重新生成</button>`:''}<button data-a="del" data-i="${i}">刪除</button></div>`;
+$('chat').onclick=e=>{const b=e.target.closest('button[data-a]');if(!b)return;const t=topic(),i=+b.dataset.i,m=t.msgs[i];if(!m)return;
+ if(b.dataset.a==='copy'){navigator.clipboard?.writeText(m.text);toast('已複製')}
+ if(b.dataset.a==='del'){t.msgs.splice(i,1);save();render()}
+ if(b.dataset.a==='re'&&bot(m.botId))run(()=>speak(bot(m.botId),m.instr||'請依你的專業對此議題提出建議。',m.round,m.tag,m))};
+$('q').oninput=render;
+$('bArch').onclick=()=>{showArch=!showArch;$('bArch').textContent=showArch?'← 回進行中議題':'已封存議題 →';render()};
+$('bEdit').onclick=()=>{const t=topic(),a=prompt('議題名稱',t.title);if(!a)return;t.title=a;t.desc=prompt('議題說明',t.desc)??t.desc;save();render()};
+$('bArc').onclick=()=>{const t=topic();t.archived=!t.archived;const n=S.topics.find(x=>!x.archived);if(t.archived&&n)S.cur=n.id;showArch=false;save();render()};
+$('bDel').onclick=()=>{if(!confirm('確定刪除此議題？無法復原（建議先匯出 .md）'))return;S.topics=S.topics.filter(x=>x.id!==S.cur);if(!S.topics.length)S.topics.push({id:uid(),title:'新議題',desc:'',status:'進行中',round:0,members:S.bots.map(b=>b.id),msgs:[],used:0});S.cur=S.topics[0].id;save();render()};
+$('bStance').onclick=()=>{topic().stance='正式立場（人工確認）';save();render()};
+async function testProv(p,btn){btn.textContent='測試中…';
+ try{if(p.type==='puter'){await loadPuter();toast('puter.js 已載入')}
+  else{const h=p.key?{Authorization:'Bearer '+p.key}:{};const r=await fetch(p.base.replace(/\/$/,'')+(p.type==='ollama'?'/api/tags':'/models'),{headers:h});if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();p.models=p.type==='ollama'?j.models.map(x=>x.name):j.data.map(x=>x.id);toast('連線成功，找到 '+p.models.length+' 個模型（可在模型欄下拉選擇）')}
+  save()}catch(err){toast('連線失敗：'+err.message)}drawSet()}
+$('tab3').onclick=()=>{tab=3;drawSet()};
+function drawSet(){if(tab===3)return drawGen();drawSet0();$('tab3').className='btn'}
+function drawGen(){
+ $('tab1').className='btn';$('tab2').className='btn';$('tab3').className='btn pri';
+ $('dBody').innerHTML=`<label>你的顯示名稱</label><input id="gMe" value="${esc(S.me)}">
+ <label>企業檔案／公司背景（會加入每位 Bot 的系統提示）</label><textarea id="gCo" rows="4" placeholder="例如：產業、產品、目標客群、本月業績目標與現況…">${esc(S.company)}</textarea>
+ <div class="row"><div><label>溫度（0–2）</label><input id="gT" type="number" step="0.1" min="0" max="2" value="${S.cfg.temp}"></div>
+ <div><label>單次最大輸出 token</label><input id="gM" type="number" min="50" value="${S.cfg.maxTok}"></div>
+ <div><label>只帶最近 N 則記錄（0=全部）</label><input id="gR" type="number" min="0" value="${S.cfg.recent}"></div></div>
+ <div class="row" style="margin-top:12px"><button class="btn" id="gExpAll">匯出全部議題 .md</button><button class="btn" id="gExpSet">匯出設定 .json</button><button class="btn" id="gImpSet">匯入設定 .json</button></div>
+ <p class="note">匯出設定不含 API Key。</p>
+ <h2 style="margin-top:14px">各議題用量（粗估）</h2>${S.topics.map(t=>`<div class="mem"><span>${esc(t.title)}</span><span style="margin-left:auto">${t.used.toLocaleString()}</span></div>`).join('')}`;
+ $('gMe').oninput=e=>{S.me=e.target.value||'使用者';save()};
+ $('gCo').oninput=e=>{S.company=e.target.value;save()};
+ $('gT').oninput=e=>{S.cfg.temp=+e.target.value;save()};
+ $('gM').oninput=e=>{S.cfg.maxTok=+e.target.value||600;save()};
+ $('gR').oninput=e=>{S.cfg.recent=Math.max(0,+e.target.value|0);save()};
+ $('gExpAll').onclick=()=>dl('全部議題.md',S.topics.map(t=>toMd(t)).join('\n\n<!--=====TOPIC=====-->\n\n'),'text/markdown;charset=utf-8');
+ $('gExpSet').onclick=()=>dl('設定.json',JSON.stringify({bots:S.bots,providers:S.providers.map(p=>({...p,key:''})),active:S.active,me:S.me,company:S.company,cfg:S.cfg},null,1),'application/json');
+ $('gImpSet').onclick=()=>{const i=document.createElement('input');i.type='file';i.accept='.json';i.onchange=async()=>{try{const j=JSON.parse(await i.files[0].text());if(!j.bots||!j.providers)throw new Error('格式不符');Object.assign(S,{bots:j.bots,providers:j.providers,active:j.active||j.providers[0].id,me:j.me||S.me,company:j.company||'',cfg:j.cfg||S.cfg});S.topics.forEach(t=>t.members=t.members.filter(id=>bot(id)));save();render();drawGen();toast('已匯入設定')}catch(e){toast('匯入失敗：'+e.message)}};i.click()};
+}
 
 render();
 </script>
