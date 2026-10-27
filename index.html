@@ -83,7 +83,7 @@ input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;
  <section class="card center">
   <div class="chead"><h2 id="tTitle"></h2><span class="badge" id="tBadge"></span><p id="tDesc"></p><div class="acts"><button id="bEdit">編輯議題</button><button id="bFacts">已確認資料</button><button id="bArc">封存</button><button id="bDel">刪除</button></div></div>
   <div id="chat" aria-live="polite"></div>
-  <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出；可用 @顧問名稱 指定單一顧問回應）"></textarea><button class="btn pri" id="bSend">送出</button></div>
+  <div class="composer"><textarea id="inp" placeholder="輸入你的意見或指示…（Ctrl+Enter 送出；未 @ 時全員依序回應，可用 @顧問名稱 指定單一顧問）"></textarea><button class="btn pri" id="bSend">送出</button></div>
  </section>
  <aside class="card side" id="sPanel">
   <h2>議題工作面板</h2>
@@ -246,9 +246,23 @@ $('bSum').onclick=()=>run(async()=>{
 $('bStop').onclick=()=>abort?.abort();
 $('bSend').onclick=send;
 $('inp').addEventListener('keydown',e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send()}});
-function send(){const v=$('inp').value.trim();if(!v||busy)return;const t=topic();t.msgs.push({kind:'human',name:S.me,text:v,ts:Date.now()});$('inp').value='';save();render();
- const ms=t.members.map(bot).filter(b=>b&&(v.includes('@'+b.name.split(' ')[0])||grpOf(b).some(g=>v.includes('@'+g))));
- if(ms.length)run(async()=>{for(const b of ms)await speak(b,'請直接、具體地回應真人最新的提問或指示。',t.round||1,SUP_TAG)})}
+function send(){
+ const v=$('inp').value.trim();if(!v||busy)return;
+ const t=topic();
+ t.msgs.push({kind:'human',name:S.me,text:v,ts:Date.now()});
+ $('inp').value='';save();render();
+ const all=t.members.map(bot).filter(Boolean);
+ // 有 @ 就只叫被點名的；沒有 @ 就全員依序回應
+ let ms=all.filter(b=>v.includes('@'+b.name.split(' ')[0])||grpOf(b).some(g=>v.includes('@'+g)));
+ if(!ms.length)ms=all;
+ if(!ms.length)return toast('本議題沒有參與成員，請先選擇成員');
+ run(async()=>{
+  for(const b of ms){
+   if(abort?.signal.aborted)break;
+   await speak(b,'請直接、具體地回應真人最新的提問或指示，並參考前面其他成員的發言。',t.round||1,SUP_TAG);
+  }
+ });
+}
 
 /* ---------- topics ---------- */
 $('tList').onclick=e=>{const b=e.target.closest('button.t');if(b){S.cur=b.dataset.id;save();render();$('sList').classList.remove('open')}};
